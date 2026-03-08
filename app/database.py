@@ -60,7 +60,7 @@ def get_session():
     """Provide a transactional database session."""
     global _SessionLocal
     if _SessionLocal is None:
-        _SessionLocal = sessionmaker(bind=get_engine(), autoflush=False)
+        _SessionLocal = sessionmaker(bind=get_engine(), autoflush=False, expire_on_commit=False)
     session: Session = _SessionLocal()
     try:
         yield session

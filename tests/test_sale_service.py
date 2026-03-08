@@ -7,7 +7,7 @@ _tmpdir = tempfile.mkdtemp()
 os.environ["LOJAFLOW_DATA"] = _tmpdir
 
 from app.database import init_db
-from app.services.product_service import create_product
+from app.services.product_service import create_product, get_product_by_id
 from app.services.sale_service import Cart, CartItem, add_product_to_cart, finalize_sale
 
 
