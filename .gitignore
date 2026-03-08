@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual envs
+venv/
+.venv/
+env/
+
+# Database
+*.db
+*.sqlite3
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# PyInstaller
+*.spec
+dist/
+
+# macOS
+.DS_Store
+
+# LojaFlow data
+.lojaflow/
+
+# Test artifacts
+.pytest_cache/
+htmlcov/
+.coverage
