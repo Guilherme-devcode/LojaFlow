@@ -177,27 +177,35 @@ class ReportsView(QWidget):
             if item.widget():
                 item.widget().deleteLater()
 
-        fig = Figure(figsize=(5, 3), facecolor="#181825")
+        fig = Figure(figsize=(5, 3), facecolor="#ffffff")
         ax = fig.add_subplot(111)
-        ax.set_facecolor("#1e1e2e")
+        ax.set_facecolor("#ffffff")
 
         summaries = self._report.daily_summaries
         dates = [s.date.strftime("%d/%m") for s in summaries]
         totals = [s.total for s in summaries]
 
-        bars = ax.bar(dates, totals, color="#cba6f7", width=0.6)
-        ax.tick_params(colors="#a6adc8", labelsize=9)
-        ax.spines["bottom"].set_color("#313244")
-        ax.spines["left"].set_color("#313244")
+        bar_colors = ["#6366f1"] * len(dates)
+        ax.bar(dates, totals, color=bar_colors, width=0.6,
+               edgecolor="#4f46e5", linewidth=0.5)
+
+        ax.set_axisbelow(True)
+        ax.yaxis.grid(True, color="#e2e8f0", linewidth=0.8, linestyle="-")
+        ax.xaxis.grid(False)
+
+        ax.spines["bottom"].set_color("#e2e8f0")
+        ax.spines["left"].set_color("#e2e8f0")
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
-        ax.set_ylabel("R$", color="#a6adc8", fontsize=9)
-        ax.set_title("Vendas por Dia", color="#cdd6f4", fontsize=11)
+        ax.set_ylabel("R$", color="#64748b", fontsize=9)
+        ax.set_title("Vendas por Dia", color="#0f172a", fontsize=11, fontweight="bold", pad=10)
+        ax.tick_params(axis="x", colors="#0f172a", labelsize=9)
+        ax.tick_params(axis="y", colors="#64748b", labelsize=9)
 
         if len(dates) > 10:
             ax.set_xticks(ax.get_xticks()[::max(1, len(dates) // 8)])
 
-        fig.tight_layout(pad=1.2)
+        fig.tight_layout(pad=1.5)
 
         canvas = FigureCanvasQTAgg(fig)
         self._canvas = canvas

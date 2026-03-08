@@ -1,6 +1,7 @@
 """Main application window with sidebar navigation."""
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
+    QFrame,
     QHBoxLayout,
     QLabel,
     QMainWindow,
@@ -57,9 +58,22 @@ class MainWindow(QMainWindow):
         logo.setObjectName("logo_label")
         sidebar_layout.addWidget(logo)
 
-        user_label = QLabel(Session.current_user.name if Session.current_user else "")
-        user_label.setObjectName("version_label")
-        sidebar_layout.addWidget(user_label)
+        user_name = Session.current_user.name if Session.current_user else "—"
+        user_role = Session.current_user.role if Session.current_user else ""
+
+        user_badge = QLabel(user_name)
+        user_badge.setObjectName("user_badge")
+        sidebar_layout.addWidget(user_badge)
+
+        role_label = QLabel(user_role.capitalize())
+        role_label.setObjectName("user_role_badge")
+        sidebar_layout.addWidget(role_label)
+
+        divider_top = QFrame()
+        divider_top.setObjectName("sidebar_separator")
+        divider_top.setFixedHeight(1)
+        sidebar_layout.addWidget(divider_top)
+        sidebar_layout.addSpacing(4)
 
         self._nav_buttons: list[QPushButton] = []
         self._stock_badge: QLabel | None = None
@@ -92,7 +106,7 @@ class MainWindow(QMainWindow):
                 badge.setFixedSize(22, 22)
                 badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
                 badge.setStyleSheet(
-                    "background:#f38ba8; color:#1e1e2e; border-radius:11px; font-size:11px; font-weight:bold;"
+                    "background:#ef4444; color:#ffffff; border-radius:11px; font-size:11px; font-weight:bold;"
                 )
                 badge.hide()
                 row_layout.addWidget(badge)
@@ -103,8 +117,15 @@ class MainWindow(QMainWindow):
 
         sidebar_layout.addStretch()
 
+        divider_bottom = QFrame()
+        divider_bottom.setObjectName("sidebar_separator")
+        divider_bottom.setFixedHeight(1)
+        sidebar_layout.addWidget(divider_bottom)
+        sidebar_layout.addSpacing(4)
+
         # Logout button
         logout_btn = QPushButton("↩  Sair")
+        logout_btn.setObjectName("sidebar_logout")
         logout_btn.clicked.connect(self._logout)
         sidebar_layout.addWidget(logout_btn)
 

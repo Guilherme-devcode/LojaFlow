@@ -3,6 +3,7 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QDoubleSpinBox,
+    QFrame,
     QHBoxLayout,
     QHeaderView,
     QLabel,
@@ -34,18 +35,22 @@ class POSView(QWidget):
 
     def _build_ui(self):
         root = QHBoxLayout(self)
-        root.setContentsMargins(16, 16, 16, 16)
+        root.setContentsMargins(20, 20, 20, 20)
         root.setSpacing(16)
 
-        # ── LEFT: Cart ───────────────────────────────────────────────────────
-        left = QVBoxLayout()
-        left.setSpacing(10)
+        # ── LEFT CARD: Cart ──────────────────────────────────────────────────
+        left_card = QFrame()
+        left_card.setObjectName("card")
+        left = QVBoxLayout(left_card)
+        left.setContentsMargins(20, 20, 20, 20)
+        left.setSpacing(12)
 
         title = QLabel("PDV — Ponto de Venda")
         title.setObjectName("page_title")
         left.addWidget(title)
 
         self.cart_table = QTableWidget()
+        self.cart_table.setObjectName("cart_table")
         self.cart_table.setColumnCount(6)
         self.cart_table.setHorizontalHeaderLabels(["Produto", "Un.", "Qtd.", "Preço", "Subtotal", ""])
         self.cart_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
@@ -57,27 +62,34 @@ class POSView(QWidget):
         self.cart_table.setColumnWidth(3, 90)
         self.cart_table.setColumnWidth(4, 90)
         self.cart_table.setColumnWidth(5, 60)
+        self.cart_table.setFrameShape(QFrame.Shape.NoFrame)
         left.addWidget(self.cart_table, 1)
 
         # Discount row
         discount_row = QHBoxLayout()
-        discount_row.addWidget(QLabel("Desconto (R$):"))
+        discount_label = QLabel("Desconto (R$):")
+        discount_label.setStyleSheet("color: #64748b; font-size: 12px;")
+        discount_row.addWidget(discount_label)
         self.discount_spin = QDoubleSpinBox()
         self.discount_spin.setPrefix("R$ ")
         self.discount_spin.setDecimals(2)
         self.discount_spin.setMaximum(99999.99)
+        self.discount_spin.setFixedWidth(140)
         self.discount_spin.valueChanged.connect(self._update_totals)
         discount_row.addWidget(self.discount_spin)
         discount_row.addStretch()
         left.addLayout(discount_row)
 
-        root.addLayout(left, 3)
+        root.addWidget(left_card, 3)
 
-        # ── RIGHT: Barcode + Totals + Controls ───────────────────────────────
-        right = QVBoxLayout()
-        right.setSpacing(8)
+        # ── RIGHT CARD: Scanner + Totals + Controls ──────────────────────────
+        right_card = QFrame()
+        right_card.setObjectName("card")
+        right = QVBoxLayout(right_card)
+        right.setContentsMargins(20, 20, 20, 20)
+        right.setSpacing(10)
 
-        scan_label = QLabel("Código de Barras / Nome do Produto  [F2]")
+        scan_label = QLabel("Código de Barras / Nome  [F2]")
         scan_label.setObjectName("stat_label")
         right.addWidget(scan_label)
 
@@ -91,25 +103,40 @@ class POSView(QWidget):
         # Search results popup list (hidden by default)
         self.search_results = QListWidget()
         self.search_results.setMaximumHeight(160)
+        self.search_results.setFrameShape(QFrame.Shape.NoFrame)
         self.search_results.hide()
         self.search_results.itemClicked.connect(self._on_search_result_selected)
         right.addWidget(self.search_results)
 
         scan_btn = QPushButton("Adicionar  [Enter]")
         scan_btn.setObjectName("btn_primary")
+        scan_btn.setFixedHeight(40)
         scan_btn.clicked.connect(self._on_barcode_entered)
         right.addWidget(scan_btn)
 
-        right.addSpacerItem(QSpacerItem(0, 12, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed))
+        # Divider between scanner and totals
+        totals_divider = QFrame()
+        totals_divider.setFrameShape(QFrame.Shape.HLine)
+        totals_divider.setStyleSheet("color: #e2e8f0;")
+        right.addWidget(totals_divider)
 
-        # Totals card
-        totals_label = QLabel("Subtotal:")
-        right.addWidget(totals_label)
+        # Totals section
+        subtotal_caption = QLabel("SUBTOTAL")
+        subtotal_caption.setObjectName("stat_label")
+        right.addWidget(subtotal_caption)
+
         self.subtotal_label = QLabel("R$ 0,00")
-        self.subtotal_label.setObjectName("stat_label")
+        self.subtotal_label.setStyleSheet(
+            "font-size: 16px; font-weight: bold; color: #475569;"
+        )
         right.addWidget(self.subtotal_label)
 
-        right.addWidget(QLabel("Total:"))
+        right.addSpacing(6)
+
+        total_caption = QLabel("TOTAL")
+        total_caption.setObjectName("stat_label")
+        right.addWidget(total_caption)
+
         self.total_label = QLabel("R$ 0,00")
         self.total_label.setObjectName("total_label")
         right.addWidget(self.total_label)
@@ -117,18 +144,20 @@ class POSView(QWidget):
         right.addStretch()
 
         # Action buttons
-        pay_btn = QPushButton("💳  Finalizar Venda  [F12]")
+        pay_btn = QPushButton("Finalizar Venda  [F12]")
         pay_btn.setObjectName("btn_success")
-        pay_btn.setMinimumHeight(50)
+        pay_btn.setMinimumHeight(52)
+        pay_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         pay_btn.clicked.connect(self._finalize_sale)
         right.addWidget(pay_btn)
 
-        clear_btn = QPushButton("🗑  Limpar Carrinho")
+        clear_btn = QPushButton("Limpar Carrinho")
         clear_btn.setObjectName("btn_danger")
+        clear_btn.setMinimumHeight(36)
         clear_btn.clicked.connect(self._clear_cart)
         right.addWidget(clear_btn)
 
-        root.addLayout(right, 1)
+        root.addWidget(right_card, 1)
 
     def _register_shortcuts(self):
         """Register keyboard shortcuts for common POS actions."""
