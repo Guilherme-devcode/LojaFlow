@@ -24,7 +24,6 @@ _ADMIN_ONLY_PAGES = {3, 4, 6}  # Estoque, Relatórios, Configurações
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        from app.session import Session
         user_name = Session.current_user.name if Session.current_user else "—"
         self.setWindowTitle(f"LojaFlow — {user_name}")
         self.setMinimumSize(1200, 750)

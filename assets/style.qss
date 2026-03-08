@@ -509,12 +509,6 @@ QCalendarWidget QAbstractItemView {
     color: #10b981;
 }
 
-/* Low stock row highlight in tables */
-#cart_table QTableWidget::item[low_stock="true"] {
-    background-color: #fef2f2;
-    color: #dc2626;
-}
-
 /* ─────────────────────────────────────────────
    SPLITTER
 ───────────────────────────────────────────── */
