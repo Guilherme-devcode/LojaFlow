@@ -1,10 +1,10 @@
 """Main application window with sidebar navigation."""
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QIcon
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QMainWindow,
+    QMessageBox,
     QPushButton,
     QStackedWidget,
     QStatusBar,
@@ -12,16 +12,31 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from app.session import Session
+
+
+# Pages that require admin role (by nav index)
+# 0=PDV, 1=Produtos, 2=Vendas, 3=Estoque, 4=Relatórios, 5=Clientes, 6=Configurações
+_ADMIN_ONLY_PAGES = {3, 4, 6}  # Estoque, Relatórios, Configurações
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("LojaFlow")
+        from app.session import Session
+        user_name = Session.current_user.name if Session.current_user else "—"
+        self.setWindowTitle(f"LojaFlow — {user_name}")
         self.setMinimumSize(1200, 750)
-        self._current_user = None
 
         self._build_ui()
+        self._apply_role_visibility()
         self._navigate_to(0)
+
+        # Periodic low-stock badge refresh (every 60s)
+        self._badge_timer = QTimer()
+        self._badge_timer.timeout.connect(self._refresh_stock_badge)
+        self._badge_timer.start(60_000)
+        self._refresh_stock_badge()
 
     def _build_ui(self):
         central = QWidget()
@@ -42,14 +57,17 @@ class MainWindow(QMainWindow):
         logo.setObjectName("logo_label")
         sidebar_layout.addWidget(logo)
 
-        version = QLabel("v1.0.0")
-        version.setObjectName("version_label")
-        sidebar_layout.addWidget(version)
+        user_label = QLabel(Session.current_user.name if Session.current_user else "")
+        user_label.setObjectName("version_label")
+        sidebar_layout.addWidget(user_label)
 
-        self._nav_buttons = []
+        self._nav_buttons: list[QPushButton] = []
+        self._stock_badge: QLabel | None = None
+
         nav_items = [
             ("🛒  PDV", "Ponto de Venda"),
             ("📦  Produtos", "Catálogo de produtos"),
+            ("📋  Vendas", "Histórico de vendas"),
             ("📊  Estoque", "Controle de estoque"),
             ("📈  Relatórios", "Relatórios de vendas"),
             ("👤  Clientes", "Cadastro de clientes"),
@@ -57,24 +75,46 @@ class MainWindow(QMainWindow):
         ]
 
         for i, (label, _tooltip) in enumerate(nav_items):
+            row_widget = QWidget()
+            row_layout = QHBoxLayout(row_widget)
+            row_layout.setContentsMargins(0, 0, 0, 0)
+            row_layout.setSpacing(0)
+
             btn = QPushButton(label)
             btn.setCheckable(True)
             btn.setToolTip(_tooltip)
             btn.clicked.connect(lambda checked, idx=i: self._navigate_to(idx))
-            sidebar_layout.addWidget(btn)
+            row_layout.addWidget(btn, 1)
+
+            # Low-stock badge (only on Estoque button, index 3)
+            if i == 3:
+                badge = QLabel()
+                badge.setFixedSize(22, 22)
+                badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                badge.setStyleSheet(
+                    "background:#f38ba8; color:#1e1e2e; border-radius:11px; font-size:11px; font-weight:bold;"
+                )
+                badge.hide()
+                row_layout.addWidget(badge)
+                self._stock_badge = badge
+
+            sidebar_layout.addWidget(row_widget)
             self._nav_buttons.append(btn)
 
         sidebar_layout.addStretch()
 
+        # Logout button
+        logout_btn = QPushButton("↩  Sair")
+        logout_btn.clicked.connect(self._logout)
+        sidebar_layout.addWidget(logout_btn)
+
         # ── Page stack ──
         self._stack = QStackedWidget()
-        self._pages = []
+        self._pages: list[QWidget] = []
 
-        # Lazy-load pages to keep startup fast
-        placeholders = [
-            "PDV", "Produtos", "Estoque", "Relatórios", "Clientes", "Configurações"
-        ]
-        for name in placeholders:
+        # Lazy-load placeholders
+        page_names = ["PDV", "Produtos", "Vendas", "Estoque", "Relatórios", "Clientes", "Configurações"]
+        for name in page_names:
             placeholder = QWidget()
             placeholder.setProperty("page_name", name)
             self._pages.append(placeholder)
@@ -85,11 +125,26 @@ class MainWindow(QMainWindow):
 
         # ── Status bar ──
         status = QStatusBar()
-        status.showMessage("LojaFlow iniciado  •  Banco de dados: OK")
+        user_info = f"Usuário: {Session.current_user.name} ({Session.current_user.role})" if Session.current_user else ""
+        status.showMessage(f"LojaFlow  •  {user_info}  •  Banco de dados: OK")
         self.setStatusBar(status)
         self._status_bar = status
 
+    def _apply_role_visibility(self):
+        """Hide admin-only pages from cashiers."""
+        if Session.is_admin():
+            return
+        for idx in _ADMIN_ONLY_PAGES:
+            if idx < len(self._nav_buttons):
+                self._nav_buttons[idx].parentWidget().setVisible(False)
+
     def _navigate_to(self, index: int):
+        # Block restricted pages for cashiers
+        if index in _ADMIN_ONLY_PAGES and not Session.is_admin():
+            QMessageBox.warning(self, "Acesso negado",
+                                "Esta área é restrita a administradores.")
+            return
+
         for i, btn in enumerate(self._nav_buttons):
             btn.setChecked(i == index)
 
@@ -108,23 +163,56 @@ class MainWindow(QMainWindow):
         """Instantiate the real page widget for the given nav index."""
         if index == 0:
             from app.views.pos.pos_view import POSView
-            return POSView()
+            view = POSView()
+            view.sale_completed.connect(self._on_sale_completed)
+            return view
         elif index == 1:
             from app.views.products.products_view import ProductsView
             return ProductsView()
         elif index == 2:
+            from app.views.sales.sales_history_view import SalesHistoryView
+            return SalesHistoryView()
+        elif index == 3:
             from app.views.inventory.inventory_view import InventoryView
             return InventoryView()
-        elif index == 3:
+        elif index == 4:
             from app.views.reports.reports_view import ReportsView
             return ReportsView()
-        elif index == 4:
+        elif index == 5:
             from app.views.customers.customers_view import CustomersView
             return CustomersView()
-        elif index == 5:
+        elif index == 6:
             from app.views.settings.settings_view import SettingsView
             return SettingsView(status_bar=self._status_bar)
         return self._pages[index]
+
+    def _on_sale_completed(self, sale_id: int):
+        self._refresh_stock_badge()
+
+    def _refresh_stock_badge(self):
+        """Update low-stock badge count on the Estoque nav button."""
+        if self._stock_badge is None:
+            return
+        try:
+            from app.services.product_service import get_low_stock_products
+            low = get_low_stock_products()
+            count = len(low)
+            if count > 0:
+                self._stock_badge.setText(str(count))
+                self._stock_badge.show()
+            else:
+                self._stock_badge.hide()
+        except Exception:
+            pass
+
+    def _logout(self):
+        reply = QMessageBox.question(
+            self, "Sair", "Deseja encerrar a sessão?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            Session.logout()
+            self.close()
 
     def set_status(self, message: str):
         self._status_bar.showMessage(message)

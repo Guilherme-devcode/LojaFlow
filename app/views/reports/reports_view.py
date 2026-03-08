@@ -81,6 +81,11 @@ class ReportsView(QWidget):
         today_btn.clicked.connect(self._load_today)
         header.addWidget(today_btn)
 
+        export_btn = QPushButton("Exportar CSV")
+        export_btn.setObjectName("btn_warning")
+        export_btn.clicked.connect(self._export_csv)
+        header.addWidget(export_btn)
+
         layout.addLayout(header)
 
         # Stat cards
@@ -206,3 +211,29 @@ class ReportsView(QWidget):
             self.products_table.setItem(row, 1, QTableWidgetItem(f"{p.qty_sold:.2f}"))
             self.products_table.setItem(row, 2, QTableWidgetItem(f"R$ {p.revenue:.2f}"))
             self.products_table.setRowHeight(row, 32)
+
+    def _export_csv(self):
+        if self._report is None:
+            self._generate_report()
+
+        from PySide6.QtWidgets import QFileDialog, QMessageBox
+        from app.services.report_service import export_csv
+
+        d_from = self.date_from.date().toPython()
+        d_to = self.date_to.date().toPython()
+        default_name = f"lojaflow_{d_from.strftime('%Y%m%d')}_{d_to.strftime('%Y%m%d')}.csv"
+
+        filepath, _ = QFileDialog.getSaveFileName(
+            self, "Exportar CSV", default_name, "Arquivo CSV (*.csv)"
+        )
+        if not filepath:
+            return
+
+        try:
+            count = export_csv(d_from, d_to, filepath)
+            QMessageBox.information(
+                self, "Exportado",
+                f"{count} linha(s) exportada(s) para:\n{filepath}"
+            )
+        except Exception as exc:
+            QMessageBox.critical(self, "Erro ao exportar", str(exc))

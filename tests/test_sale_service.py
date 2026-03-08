@@ -103,3 +103,42 @@ class TestFinalizeSale:
         cart = Cart()
         with pytest.raises(ValueError, match="Carrinho vazio"):
             finalize_sale(cart, payment_method="cash", amount_paid=0.0)
+
+
+class TestCancelSale:
+    def test_cancel_restores_stock(self):
+        from app.services.sale_service import cancel_sale
+        p = _make_product(name="Item Cancelar", sale_price=8.0, stock_qty=10.0)
+        cart = Cart()
+        cart.add_or_increment(CartItem(
+            product_id=p.id, product_name=p.name, unit_price=8.0, qty=4
+        ))
+        sale = finalize_sale(cart, payment_method="cash", amount_paid=32.0)
+        assert get_product_by_id(p.id).stock_qty == 6.0
+
+        cancel_sale(sale.id, "Teste de cancelamento")
+        assert get_product_by_id(p.id).stock_qty == 10.0
+
+    def test_cancel_changes_status(self):
+        from app.services.sale_service import cancel_sale, get_sale_by_id
+        p = _make_product(name="Item Status", sale_price=5.0, stock_qty=20.0)
+        cart = Cart()
+        cart.add_or_increment(CartItem(
+            product_id=p.id, product_name=p.name, unit_price=5.0, qty=1
+        ))
+        sale = finalize_sale(cart, payment_method="card", amount_paid=5.0)
+        cancel_sale(sale.id)
+        updated = get_sale_by_id(sale.id)
+        assert updated.status == "cancelled"
+
+    def test_cancel_already_cancelled_raises(self):
+        from app.services.sale_service import cancel_sale
+        p = _make_product(name="Item Double Cancel", sale_price=5.0, stock_qty=20.0)
+        cart = Cart()
+        cart.add_or_increment(CartItem(
+            product_id=p.id, product_name=p.name, unit_price=5.0, qty=1
+        ))
+        sale = finalize_sale(cart, payment_method="cash", amount_paid=5.0)
+        cancel_sale(sale.id)
+        with pytest.raises(ValueError):
+            cancel_sale(sale.id)

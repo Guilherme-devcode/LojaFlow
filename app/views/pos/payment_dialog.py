@@ -1,36 +1,57 @@
-"""Payment dialog — method selection, change calculation."""
+"""Payment dialog — method selection, change calculation, optional customer."""
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QButtonGroup,
+    QCompleter,
     QDialog,
     QDialogButtonBox,
     QDoubleSpinBox,
     QFormLayout,
     QLabel,
+    QLineEdit,
     QPushButton,
     QRadioButton,
     QVBoxLayout,
     QWidget,
     QHBoxLayout,
-    QButtonGroup,
 )
+
+from app.database import get_session
+from app.models.customer import Customer
 
 
 class PaymentDialog(QDialog):
     def __init__(self, total: float, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Finalizar Venda")
-        self.setMinimumWidth(360)
+        self.setMinimumWidth(380)
         self._total = total
         self.selected_method = "cash"
         self.amount_paid = total
+        self.selected_customer_id: int | None = None
+        self._customers: list[Customer] = []
         self._build_ui()
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
         layout.setSpacing(16)
 
+        # Optional customer search
+        customer_form = QFormLayout()
+        self.customer_edit = QLineEdit()
+        self.customer_edit.setPlaceholderText("Nome ou CPF (opcional)...")
+        self.customer_edit.textChanged.connect(self._on_customer_search)
+        customer_form.addRow("Cliente:", self.customer_edit)
+        layout.addLayout(customer_form)
+
+        self._customer_status = QLabel("")
+        self._customer_status.setObjectName("stat_label")
+        layout.addWidget(self._customer_status)
+
+        self._load_customers()
+
         # Total display
-        total_label = QLabel(f"Total a Pagar")
+        total_label = QLabel("Total a Pagar")
         total_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(total_label)
 
@@ -100,6 +121,28 @@ class PaymentDialog(QDialog):
         layout.addWidget(buttons)
 
         self._update_change()
+
+    def _load_customers(self):
+        with get_session() as s:
+            self._customers = s.query(Customer).order_by(Customer.name).all()
+        names = [f"{c.name} ({c.cpf})" if c.cpf else c.name for c in self._customers]
+        completer = QCompleter(names, self)
+        completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+        self.customer_edit.setCompleter(completer)
+
+    def _on_customer_search(self, text: str):
+        text = text.strip().lower()
+        if not text:
+            self.selected_customer_id = None
+            self._customer_status.setText("")
+            return
+        for c in self._customers:
+            if text in c.name.lower() or (c.cpf and text in c.cpf):
+                self.selected_customer_id = c.id
+                self._customer_status.setText(f"✓ {c.name}")
+                return
+        self.selected_customer_id = None
+        self._customer_status.setText("")
 
     def _round_up(self, amount: int) -> float:
         import math

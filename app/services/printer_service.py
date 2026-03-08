@@ -7,8 +7,8 @@ from datetime import datetime
 from app.models.sale import Sale
 
 
-def _format_receipt_lines(sale: Sale, store_name: str = "LojaFlow") -> list[str]:
-    """Generate receipt lines (72-char width for standard thermal)."""
+def _format_receipt_lines(sale: Sale, store_name: str = "LojaFlow", footer: str = "") -> list[str]:
+    """Generate receipt lines (42-char width for standard thermal)."""
     W = 42  # thermal printer char width
     lines = []
 
@@ -46,13 +46,14 @@ def _format_receipt_lines(sale: Sale, store_name: str = "LojaFlow") -> list[str]
         lines.append(f"Troco: R${sale.change_given:.2f}")
 
     lines.append(divider("="))
-    lines.append(center("Obrigado pela preferência!"))
+    footer_text = footer if footer else "Obrigado pela preferência!"
+    lines.append(center(footer_text))
     lines.append("")
 
     return lines
 
 
-def print_receipt_escpos(sale: Sale, port: str = "USB", store_name: str = "LojaFlow") -> bool:
+def print_receipt_escpos(sale: Sale, port: str = "USB", store_name: str = "LojaFlow", footer: str = "") -> bool:
     """Print receipt using python-escpos. Returns True if successful."""
     try:
         from escpos import printer as ep
@@ -64,7 +65,7 @@ def print_receipt_escpos(sale: Sale, port: str = "USB", store_name: str = "LojaF
         else:
             p = ep.Network(port)
 
-        lines = _format_receipt_lines(sale, store_name)
+        lines = _format_receipt_lines(sale, store_name, footer)
         for line in lines:
             p.text(line + "\n")
         p.cut()

@@ -104,3 +104,40 @@ def get_report(date_from: date, date_to: date) -> ReportData:
 def get_today_summary() -> ReportData:
     today = date.today()
     return get_report(today, today)
+
+
+def export_csv(date_from: date, date_to: date, filepath) -> int:
+    """Export sale items for the period to a CSV file. Returns row count."""
+    import csv
+    from pathlib import Path
+
+    dt_from = datetime.combine(date_from, datetime.min.time())
+    dt_to = datetime.combine(date_to, datetime.max.time())
+
+    with get_session() as s:
+        rows = (
+            s.query(SaleItem, Sale)
+            .join(Sale, SaleItem.sale_id == Sale.id)
+            .filter(Sale.status == "completed", Sale.created_at.between(dt_from, dt_to))
+            .order_by(Sale.created_at)
+            .all()
+        )
+
+    with open(filepath, "w", newline="", encoding="utf-8-sig") as f:
+        writer = csv.writer(f, delimiter=";")
+        writer.writerow([
+            "Data", "Venda #", "Produto", "Qtd.", "Preço Unit. (R$)",
+            "Subtotal (R$)", "Pagamento"
+        ])
+        for item, sale in rows:
+            writer.writerow([
+                sale.created_at.strftime("%d/%m/%Y %H:%M"),
+                sale.id,
+                item.product_name,
+                f"{item.qty:.3f}".replace(".", ","),
+                f"{item.unit_price:.2f}".replace(".", ","),
+                f"{item.subtotal:.2f}".replace(".", ","),
+                sale.payment_method,
+            ])
+
+    return len(rows)

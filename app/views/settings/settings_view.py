@@ -15,22 +15,8 @@ from PySide6.QtWidgets import (
 )
 
 from app.database import get_session
-from app.models.user import AppConfig, User
-
-
-def get_config(key: str, default: str = "") -> str:
-    with get_session() as s:
-        row = s.get(AppConfig, key)
-        return row.value if row else default
-
-
-def set_config(key: str, value: str):
-    with get_session() as s:
-        row = s.get(AppConfig, key)
-        if row:
-            row.value = value
-        else:
-            s.add(AppConfig(key=key, value=value))
+from app.models.user import User
+from app.services.settings_service import get_config, set_config, invalidate_cache
 
 
 class SettingsView(QWidget):
@@ -124,10 +110,28 @@ class SettingsView(QWidget):
         user_form.addRow("", change_pass_btn)
 
         main.addWidget(user_group)
+
+        # ── User management panel ─────────────────────────────────────────────
+        from app.views.settings.user_management_view import UserManagementWidget
+        self._user_mgmt = UserManagementWidget()
+        main.addWidget(self._user_mgmt)
+
+        # ── Backup ────────────────────────────────────────────────────────────
+        backup_group = QGroupBox("Backup do Banco de Dados")
+        backup_layout = QHBoxLayout(backup_group)
+        backup_btn = QPushButton("Fazer Backup Agora")
+        backup_btn.setObjectName("btn_primary")
+        backup_btn.clicked.connect(self._do_backup)
+        backup_layout.addWidget(backup_btn)
+        self.backup_status = QLabel("")
+        self.backup_status.setObjectName("stat_label")
+        backup_layout.addWidget(self.backup_status, 1)
+        main.addWidget(backup_group)
+
         main.addStretch()
 
         # App info
-        info = QLabel("LojaFlow v1.0.0  •  Sistema de gestão para comércio  •  Offline-first")
+        info = QLabel("LojaFlow v1.1.0  •  Sistema de gestão para comércio  •  Offline-first")
         info.setObjectName("stat_label")
         main.addWidget(info)
 
@@ -145,6 +149,7 @@ class SettingsView(QWidget):
         set_config("store_address", self.address_edit.text().strip())
         set_config("store_phone", self.phone_edit.text().strip())
         set_config("receipt_footer", self.footer_edit.text().strip())
+        invalidate_cache()
         QMessageBox.information(self, "Salvo", "Dados da loja salvos com sucesso.")
         if self._status_bar:
             self._status_bar.showMessage(f"Loja: {self.store_name_edit.text()}")
@@ -209,3 +214,19 @@ class SettingsView(QWidget):
         self.old_pass_edit.clear()
         self.new_pass_edit.clear()
         self.confirm_pass_edit.clear()
+
+    def _do_backup(self):
+        from PySide6.QtWidgets import QFileDialog
+        from app.services.backup_service import create_backup
+        from pathlib import Path
+
+        dest = QFileDialog.getExistingDirectory(self, "Selecionar pasta para backup")
+        if not dest:
+            return
+
+        try:
+            backup_path = create_backup(Path(dest))
+            self.backup_status.setText(f"✓ Backup salvo: {backup_path.name}")
+            QMessageBox.information(self, "Backup", f"Backup criado com sucesso:\n{backup_path}")
+        except Exception as exc:
+            QMessageBox.critical(self, "Erro no Backup", str(exc))

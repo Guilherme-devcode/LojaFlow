@@ -139,11 +139,50 @@ def get_sale_by_id(sale_id: int) -> Sale | None:
         return s.get(Sale, sale_id)
 
 
-def list_sales(date_from: datetime | None = None, date_to: datetime | None = None) -> list[Sale]:
+def list_sales(
+    date_from: datetime | None = None,
+    date_to: datetime | None = None,
+    include_cancelled: bool = False,
+) -> list[Sale]:
     with get_session() as s:
-        q = s.query(Sale).filter(Sale.status == "completed")
+        q = s.query(Sale)
+        if not include_cancelled:
+            q = q.filter(Sale.status == "completed")
         if date_from:
             q = q.filter(Sale.created_at >= date_from)
         if date_to:
             q = q.filter(Sale.created_at <= date_to)
         return q.order_by(Sale.created_at.desc()).all()
+
+
+def cancel_sale(sale_id: int, reason: str = "") -> Sale:
+    """Cancel a completed sale and restore stock for all items."""
+    with get_session() as s:
+        sale = s.get(Sale, sale_id)
+        if not sale:
+            raise ValueError(f"Venda #{sale_id} não encontrada")
+        if sale.status != "completed":
+            raise ValueError(f"Venda #{sale_id} já está {sale.status}")
+
+        sale.status = "cancelled"
+
+        for item in sale.items:
+            if item.product_id is None:
+                continue
+            product = s.get(Product, item.product_id)
+            if product:
+                qty_before = product.stock_qty
+                product.stock_qty = round(qty_before + item.qty, 3)
+                movement = StockMovement(
+                    product_id=product.id,
+                    movement_type="in",
+                    qty_before=qty_before,
+                    qty_change=item.qty,
+                    qty_after=product.stock_qty,
+                    reason=f"Cancelamento venda #{sale_id}: {reason}",
+                )
+                s.add(movement)
+
+        s.flush()
+        s.refresh(sale)
+        return sale
