@@ -50,7 +50,7 @@ class MainWindow(QMainWindow):
         sidebar = QWidget()
         sidebar.setObjectName("sidebar")
         sidebar_layout = QVBoxLayout(sidebar)
-        sidebar_layout.setContentsMargins(8, 0, 8, 8)
+        sidebar_layout.setContentsMargins(0, 0, 8, 12)
         sidebar_layout.setSpacing(2)
 
         logo = QLabel("LojaFlow")
@@ -64,7 +64,8 @@ class MainWindow(QMainWindow):
         user_badge.setObjectName("user_badge")
         sidebar_layout.addWidget(user_badge)
 
-        role_label = QLabel(user_role.capitalize())
+        role_map = {"admin": "Administrador", "cashier": "Operador de Caixa"}
+        role_label = QLabel(role_map.get(user_role, user_role.capitalize()))
         role_label.setObjectName("user_role_badge")
         sidebar_layout.addWidget(role_label)
 
@@ -72,20 +73,20 @@ class MainWindow(QMainWindow):
         divider_top.setObjectName("sidebar_separator")
         divider_top.setFixedHeight(1)
         sidebar_layout.addWidget(divider_top)
-        sidebar_layout.addSpacing(4)
+        sidebar_layout.addSpacing(6)
 
         self._nav_buttons: list[QPushButton] = []
         self._stock_badge: QLabel | None = None
 
         nav_items = [
-            ("🏠  Dashboard", "Visão geral do dia"),
-            ("🛒  PDV", "Ponto de Venda"),
-            ("📦  Produtos", "Catálogo de produtos"),
-            ("📋  Vendas", "Histórico de vendas"),
-            ("📊  Estoque", "Controle de estoque"),
-            ("📈  Relatórios", "Relatórios de vendas"),
-            ("👤  Clientes", "Cadastro de clientes"),
-            ("⚙️  Configurações", "Configurações do sistema"),
+            ("  Dashboard", "Visão geral do negócio"),
+            ("  PDV", "Ponto de Venda"),
+            ("  Produtos", "Catálogo de produtos"),
+            ("  Vendas", "Histórico de vendas"),
+            ("  Estoque", "Controle de estoque"),
+            ("  Relatórios", "Relatórios e análises"),
+            ("  Clientes", "Cadastro de clientes"),
+            ("  Configurações", "Configurações do sistema"),
         ]
 
         for i, (label, _tooltip) in enumerate(nav_items):
@@ -121,10 +122,10 @@ class MainWindow(QMainWindow):
         divider_bottom.setObjectName("sidebar_separator")
         divider_bottom.setFixedHeight(1)
         sidebar_layout.addWidget(divider_bottom)
-        sidebar_layout.addSpacing(4)
+        sidebar_layout.addSpacing(6)
 
         # Logout button
-        logout_btn = QPushButton("↩  Sair")
+        logout_btn = QPushButton("  Sair")
         logout_btn.setObjectName("sidebar_logout")
         logout_btn.clicked.connect(self._logout)
         sidebar_layout.addWidget(logout_btn)
