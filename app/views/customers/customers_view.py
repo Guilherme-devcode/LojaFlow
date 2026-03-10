@@ -96,11 +96,11 @@ class CustomerFormDialog(QDialog):
         layout.addWidget(buttons)
 
     def _populate(self, c: Customer):
-        self.name_edit.setText(c.name)
-        self.phone_edit.setText(c.phone)
-        self.cpf_edit.setText(c.cpf)
+        self.name_edit.setText(c.name or "")
+        self.phone_edit.setText(c.phone or "")
+        self.cpf_edit.setText(c.cpf or "")
         self.email_edit.setText(getattr(c, "email", "") or "")
-        self.notes_edit.setPlainText(c.notes)
+        self.notes_edit.setPlainText(c.notes or "")
 
     def _save(self):
         name = self.name_edit.text().strip()
@@ -170,7 +170,7 @@ class CustomersView(QWidget):
         customers = list_customers(search)
         self.table.setRowCount(len(customers))
         for row, c in enumerate(customers):
-            for col, text in enumerate([str(c.id), c.name, c.phone, c.cpf]):
+            for col, text in enumerate([str(c.id), c.name, c.phone or "", c.cpf or ""]):
                 self.table.setItem(row, col, QTableWidgetItem(text))
 
             actions = QWidget()

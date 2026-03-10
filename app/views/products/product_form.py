@@ -108,6 +108,11 @@ class ProductFormDialog(QDialog):
         idx = self.unit_combo.findText(product.unit)
         if idx >= 0:
             self.unit_combo.setCurrentIndex(idx)
+        if product.category_id is not None:
+            for i in range(self.category_combo.count()):
+                if self.category_combo.itemData(i) == product.category_id:
+                    self.category_combo.setCurrentIndex(i)
+                    break
 
     def _save(self):
         name = self.name_edit.text().strip()

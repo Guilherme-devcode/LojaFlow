@@ -11,9 +11,10 @@ from app.database import init_db
 from app.services.product_service import (
     create_product,
     delete_product,
+    get_low_stock_products,
+    get_or_create_category,
     get_product_by_barcode,
     get_product_by_id,
-    get_low_stock_products,
     list_products,
     update_product,
 )
@@ -109,3 +110,38 @@ class TestLowStock:
         _make_product(name="Produto OK", stock_qty=50.0, min_stock=5.0)
         low = get_low_stock_products()
         assert not any(p.name == "Produto OK" for p in low)
+
+    def test_equal_to_min_is_low_stock(self):
+        """Estoque igual ao mínimo deve ser considerado baixo."""
+        _make_product(name="Produto Limite", stock_qty=5.0, min_stock=5.0)
+        low = get_low_stock_products()
+        assert any(p.name == "Produto Limite" for p in low)
+
+
+class TestCategoryEagerLoading:
+    def test_category_accessible_after_session_close(self):
+        """Verifica que product.category não causa DetachedInstanceError."""
+        cat = get_or_create_category("Bebidas")
+        _make_product(name="Suco", category_id=cat.id)
+        products = list_products(search="Suco")
+        assert len(products) == 1
+        # This would raise DetachedInstanceError before the fix
+        assert products[0].category is not None
+        assert products[0].category.name == "Bebidas"
+
+    def test_product_without_category_returns_none(self):
+        """Produto sem categoria deve retornar category=None sem erro."""
+        _make_product(name="Produto Sem Cat")
+        products = list_products(search="Produto Sem Cat")
+        assert len(products) == 1
+        assert products[0].category is None
+
+    def test_list_products_with_mixed_categories(self):
+        """Lista com produtos com e sem categoria não deve lançar erros."""
+        cat = get_or_create_category("Alimentos")
+        _make_product(name="Arroz Cat", category_id=cat.id)
+        _make_product(name="Sal Sem Cat")
+        products = list_products()
+        for p in products:
+            # Accessing category should not raise DetachedInstanceError
+            _ = p.category

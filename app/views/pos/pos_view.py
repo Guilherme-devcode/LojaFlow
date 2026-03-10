@@ -300,6 +300,7 @@ class POSView(QWidget):
         if btn is self._btn_discount_rs:
             self._discount_mode = "R$"
             self.discount_spin.setPrefix("R$ ")
+            self.discount_spin.setSuffix("")
             self.discount_spin.setMaximum(99999.99)
         else:
             self._discount_mode = "%"

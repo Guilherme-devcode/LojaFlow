@@ -1,6 +1,8 @@
 """Inventory / stock management business logic."""
 from __future__ import annotations
 
+from sqlalchemy.orm import joinedload
+
 from app.database import get_session
 from app.models.product import Product
 from app.models.sale import StockMovement
@@ -58,7 +60,7 @@ def set_stock(product_id: int, new_qty: float, reason: str = "Ajuste manual") ->
 
 def list_movements(product_id: int | None = None, limit: int = 200) -> list[StockMovement]:
     with get_session() as s:
-        q = s.query(StockMovement)
+        q = s.query(StockMovement).options(joinedload(StockMovement.product))
         if product_id:
             q = q.filter(StockMovement.product_id == product_id)
         return q.order_by(StockMovement.created_at.desc()).limit(limit).all()
