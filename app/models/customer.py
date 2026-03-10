@@ -14,6 +14,7 @@ class Customer(Base):
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     phone: Mapped[str] = mapped_column(String(20), default="")
     cpf: Mapped[str] = mapped_column(String(14), default="")
+    email: Mapped[str] = mapped_column(String(200), default="")
     notes: Mapped[str] = mapped_column(String(500), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 

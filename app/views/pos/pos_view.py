@@ -2,6 +2,7 @@
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
+    QButtonGroup,
     QDoubleSpinBox,
     QFrame,
     QHBoxLayout,
@@ -63,11 +64,28 @@ class POSView(QWidget):
         self.cart_table.setFrameShape(QFrame.Shape.NoFrame)
         left.addWidget(self.cart_table, 1)
 
-        # Discount row
+        # Discount row with R$/% toggle
         discount_row = QHBoxLayout()
-        discount_label = QLabel("Desconto (R$):")
+        discount_label = QLabel("Desconto:")
         discount_label.setStyleSheet("color: #64748b; font-size: 12px;")
         discount_row.addWidget(discount_label)
+
+        self._discount_mode = "R$"  # "R$" or "%"
+        self._btn_discount_rs = QPushButton("R$")
+        self._btn_discount_rs.setCheckable(True)
+        self._btn_discount_rs.setChecked(True)
+        self._btn_discount_rs.setFixedWidth(36)
+        self._btn_discount_pct = QPushButton("%")
+        self._btn_discount_pct.setCheckable(True)
+        self._btn_discount_pct.setFixedWidth(36)
+        discount_grp = QButtonGroup(self)
+        discount_grp.addButton(self._btn_discount_rs)
+        discount_grp.addButton(self._btn_discount_pct)
+        discount_grp.setExclusive(True)
+        discount_grp.buttonClicked.connect(self._on_discount_mode_changed)
+        discount_row.addWidget(self._btn_discount_rs)
+        discount_row.addWidget(self._btn_discount_pct)
+
         self.discount_spin = QDoubleSpinBox()
         self.discount_spin.setPrefix("R$ ")
         self.discount_spin.setDecimals(2)
@@ -278,8 +296,25 @@ class POSView(QWidget):
         self._cart.remove(product_id)
         self._refresh_cart_table()
 
+    def _on_discount_mode_changed(self, btn):
+        if btn is self._btn_discount_rs:
+            self._discount_mode = "R$"
+            self.discount_spin.setPrefix("R$ ")
+            self.discount_spin.setMaximum(99999.99)
+        else:
+            self._discount_mode = "%"
+            self.discount_spin.setPrefix("")
+            self.discount_spin.setSuffix(" %")
+            self.discount_spin.setMaximum(100.0)
+        self.discount_spin.setValue(0)
+        self._update_totals()
+
     def _update_totals(self):
-        self._cart.discount = self.discount_spin.value()
+        if self._discount_mode == "%":
+            pct = self.discount_spin.value()
+            self._cart.discount = round(self._cart.subtotal * pct / 100, 2)
+        else:
+            self._cart.discount = self.discount_spin.value()
         self.subtotal_label.setText(f"R$ {self._cart.subtotal:.2f}")
         self.total_label.setText(f"R$ {self._cart.total:.2f}")
 

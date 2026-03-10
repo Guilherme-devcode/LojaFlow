@@ -1,4 +1,4 @@
-"""Sale detail dialog — shows items and allows cancellation."""
+"""Sale detail dialog — shows items and allows cancellation and reprinting."""
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QDialog,
@@ -86,6 +86,12 @@ class SaleDetailDialog(QDialog):
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
 
+        reprint_btn = QPushButton("Reimprimir Recibo")
+        reprint_btn.setObjectName("btn_warning")
+        reprint_btn.setEnabled(self._sale.status == "completed")
+        reprint_btn.clicked.connect(self._reprint)
+        btn_layout.addWidget(reprint_btn)
+
         if self._sale.status == "completed":
             cancel_btn = QPushButton("Cancelar Venda")
             cancel_btn.setObjectName("btn_danger")
@@ -97,6 +103,15 @@ class SaleDetailDialog(QDialog):
         btn_layout.addWidget(close_btn)
 
         layout.addLayout(btn_layout)
+
+    def _reprint(self):
+        from app.services.printer_service import print_receipt
+        from app.services.settings_service import get_config
+        port = get_config("printer_port", "USB")
+        store_name = get_config("store_name", "LojaFlow")
+        ok = print_receipt(self._sale, port=port, store_name=store_name)
+        if not ok:
+            QMessageBox.warning(self, "Impressão", "Não foi possível imprimir. Verifique a configuração da impressora.")
 
     def _cancel_sale(self):
         reason, ok = QInputDialog.getText(

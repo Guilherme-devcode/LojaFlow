@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
 from app.database import get_session
 from app.models.sale import Sale
 from app.services.sale_service import list_sales
+from app.views.customers.customers_view import list_customers
 
 
 class SalesHistoryView(QWidget):
@@ -54,6 +55,14 @@ class SalesHistoryView(QWidget):
         self.status_combo.addItem("Apenas concluídas", "completed")
         self.status_combo.addItem("Todas (incl. canceladas)", "all")
         header.addWidget(self.status_combo)
+
+        self.customer_combo = QComboBox()
+        self.customer_combo.setFixedWidth(180)
+        self.customer_combo.addItem("Todos os clientes", None)
+        for c in list_customers():
+            self.customer_combo.addItem(c.name, c.id)
+        header.addWidget(QLabel("Cliente:"))
+        header.addWidget(self.customer_combo)
 
         search_btn = QPushButton("Filtrar")
         search_btn.setObjectName("btn_primary")
@@ -98,7 +107,8 @@ class SalesHistoryView(QWidget):
         dt_to = datetime.combine(d_to, datetime.max.time())
 
         include_cancelled = self.status_combo.currentData() == "all"
-        sales = list_sales(dt_from, dt_to, include_cancelled=include_cancelled)
+        customer_id = self.customer_combo.currentData()
+        sales = list_sales(dt_from, dt_to, include_cancelled=include_cancelled, customer_id=customer_id)
 
         self.table.setRowCount(len(sales))
         total_revenue = 0.0

@@ -143,6 +143,7 @@ def list_sales(
     date_from: datetime | None = None,
     date_to: datetime | None = None,
     include_cancelled: bool = False,
+    customer_id: int | None = None,
 ) -> list[Sale]:
     with get_session() as s:
         q = s.query(Sale)
@@ -152,6 +153,8 @@ def list_sales(
             q = q.filter(Sale.created_at >= date_from)
         if date_to:
             q = q.filter(Sale.created_at <= date_to)
+        if customer_id is not None:
+            q = q.filter(Sale.customer_id == customer_id)
         return q.order_by(Sale.created_at.desc()).all()
 
 

@@ -86,6 +86,11 @@ class ReportsView(QWidget):
         export_btn.clicked.connect(self._export_csv)
         header.addWidget(export_btn)
 
+        pdf_btn = QPushButton("Exportar PDF")
+        pdf_btn.setObjectName("btn_success")
+        pdf_btn.clicked.connect(self._export_pdf)
+        header.addWidget(pdf_btn)
+
         layout.addLayout(header)
 
         # Stat cards
@@ -245,3 +250,108 @@ class ReportsView(QWidget):
             )
         except Exception as exc:
             QMessageBox.critical(self, "Erro ao exportar", str(exc))
+
+    def _export_pdf(self):
+        if self._report is None:
+            self._generate_report()
+
+        from PySide6.QtGui import QPageLayout, QPageSize, QPainter
+        from PySide6.QtPrintSupport import QPrinter
+        from PySide6.QtWidgets import QFileDialog, QMessageBox
+
+        d_from = self.date_from.date().toPython()
+        d_to = self.date_to.date().toPython()
+        default_name = f"relatorio_{d_from.strftime('%Y%m%d')}_{d_to.strftime('%Y%m%d')}.pdf"
+
+        filepath, _ = QFileDialog.getSaveFileName(
+            self, "Exportar PDF", default_name, "Arquivo PDF (*.pdf)"
+        )
+        if not filepath:
+            return
+
+        try:
+            printer = QPrinter(QPrinter.PrinterMode.HighResolution)
+            printer.setOutputFormat(QPrinter.OutputFormat.PdfFormat)
+            printer.setOutputFileName(filepath)
+            printer.setPageSize(QPageSize(QPageSize.PageSizeId.A4))
+            printer.setPageOrientation(QPageLayout.Orientation.Portrait)
+
+            painter = QPainter()
+            if not painter.begin(printer):
+                QMessageBox.critical(self, "Erro", "Não foi possível criar o PDF.")
+                return
+
+            from PySide6.QtGui import QFont
+            from PySide6.QtCore import QRectF
+
+            page_rect = printer.pageRect(QPrinter.Unit.DevicePixel)
+            w = page_rect.width()
+            y = 40.0
+            line_h = 60.0
+
+            def draw_text(text, x, y_pos, font_size=28, bold=False, color=None):
+                f = QFont("Segoe UI", font_size)
+                f.setBold(bold)
+                painter.setFont(f)
+                if color:
+                    from PySide6.QtGui import QColor
+                    painter.setPen(QColor(color))
+                else:
+                    from PySide6.QtGui import QColor
+                    painter.setPen(QColor("#0f172a"))
+                painter.drawText(QRectF(x, y_pos, w - x * 2, line_h * 2), text)
+
+            r = self._report
+            draw_text("LojaFlow — Relatório de Vendas", 40, y, font_size=48, bold=True, color="#6366f1")
+            y += line_h * 2
+
+            period = f"{d_from.strftime('%d/%m/%Y')} a {d_to.strftime('%d/%m/%Y')}"
+            draw_text(f"Período: {period}", 40, y, font_size=30, color="#64748b")
+            y += line_h * 1.5
+
+            # Stats
+            stats = [
+                ("Receita Total", f"R$ {r.total_revenue:.2f}"),
+                ("Nº de Vendas", str(r.num_sales)),
+                ("Ticket Médio", f"R$ {r.avg_ticket:.2f}"),
+                ("Dinheiro", f"R$ {r.by_payment.get('cash', 0):.2f}"),
+                ("Cartão", f"R$ {r.by_payment.get('card', 0):.2f}"),
+                ("Pix", f"R$ {r.by_payment.get('pix', 0):.2f}"),
+            ]
+            col_w = (w - 80) / 3
+            for i, (label, value) in enumerate(stats):
+                col = i % 3
+                row = i // 3
+                x_pos = 40 + col * col_w
+                y_pos = y + row * line_h * 2.2
+                draw_text(label, x_pos, y_pos, font_size=22, color="#64748b")
+                draw_text(value, x_pos, y_pos + line_h * 0.8, font_size=32, bold=True, color="#6366f1")
+
+            y += line_h * 5.5
+
+            # Top products table
+            draw_text("Top Produtos", 40, y, font_size=32, bold=True)
+            y += line_h * 1.4
+
+            headers = ["Produto", "Qtd. Vendida", "Receita"]
+            col_widths = [w * 0.55 - 40, w * 0.2, w * 0.25]
+            for i, h in enumerate(headers):
+                x_pos = 40 + sum(col_widths[:i])
+                draw_text(h, x_pos, y, font_size=22, bold=True, color="#64748b")
+            y += line_h
+
+            for p in r.top_products[:10]:
+                row_vals = [p.product_name, f"{p.qty_sold:.2f}", f"R$ {p.revenue:.2f}"]
+                for i, val in enumerate(row_vals):
+                    x_pos = 40 + sum(col_widths[:i])
+                    draw_text(val, x_pos, y, font_size=24)
+                y += line_h * 0.9
+                if y > page_rect.height() - 100:
+                    printer.newPage()
+                    y = 40.0
+
+            painter.end()
+
+            QMessageBox.information(self, "Exportado", f"PDF salvo em:\n{filepath}")
+        except Exception as exc:
+            QMessageBox.critical(self, "Erro ao exportar PDF", str(exc))

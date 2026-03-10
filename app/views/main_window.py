@@ -17,8 +17,8 @@ from app.session import Session
 
 
 # Pages that require admin role (by nav index)
-# 0=PDV, 1=Produtos, 2=Vendas, 3=Estoque, 4=Relatórios, 5=Clientes, 6=Configurações
-_ADMIN_ONLY_PAGES = {3, 4, 6}  # Estoque, Relatórios, Configurações
+# 0=Dashboard, 1=PDV, 2=Produtos, 3=Vendas, 4=Estoque, 5=Relatórios, 6=Clientes, 7=Configurações
+_ADMIN_ONLY_PAGES = {4, 5, 7}  # Estoque, Relatórios, Configurações
 
 
 class MainWindow(QMainWindow):
@@ -78,6 +78,7 @@ class MainWindow(QMainWindow):
         self._stock_badge: QLabel | None = None
 
         nav_items = [
+            ("🏠  Dashboard", "Visão geral do dia"),
             ("🛒  PDV", "Ponto de Venda"),
             ("📦  Produtos", "Catálogo de produtos"),
             ("📋  Vendas", "Histórico de vendas"),
@@ -99,8 +100,8 @@ class MainWindow(QMainWindow):
             btn.clicked.connect(lambda checked, idx=i: self._navigate_to(idx))
             row_layout.addWidget(btn, 1)
 
-            # Low-stock badge (only on Estoque button, index 3)
-            if i == 3:
+            # Low-stock badge (only on Estoque button, index 4)
+            if i == 4:
                 badge = QLabel()
                 badge.setFixedSize(22, 22)
                 badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -133,7 +134,7 @@ class MainWindow(QMainWindow):
         self._pages: list[QWidget] = []
 
         # Lazy-load placeholders
-        page_names = ["PDV", "Produtos", "Vendas", "Estoque", "Relatórios", "Clientes", "Configurações"]
+        page_names = ["Dashboard", "PDV", "Produtos", "Vendas", "Estoque", "Relatórios", "Clientes", "Configurações"]
         for name in page_names:
             placeholder = QWidget()
             placeholder.setProperty("page_name", name)
@@ -182,26 +183,31 @@ class MainWindow(QMainWindow):
     def _load_page(self, index: int) -> QWidget:
         """Instantiate the real page widget for the given nav index."""
         if index == 0:
+            from app.views.dashboard.dashboard_view import DashboardView
+            view = DashboardView()
+            view.set_navigate_callback(lambda: self._navigate_to(1))
+            return view
+        elif index == 1:
             from app.views.pos.pos_view import POSView
             view = POSView()
             view.sale_completed.connect(self._on_sale_completed)
             return view
-        elif index == 1:
+        elif index == 2:
             from app.views.products.products_view import ProductsView
             return ProductsView()
-        elif index == 2:
+        elif index == 3:
             from app.views.sales.sales_history_view import SalesHistoryView
             return SalesHistoryView()
-        elif index == 3:
+        elif index == 4:
             from app.views.inventory.inventory_view import InventoryView
             return InventoryView()
-        elif index == 4:
+        elif index == 5:
             from app.views.reports.reports_view import ReportsView
             return ReportsView()
-        elif index == 5:
+        elif index == 6:
             from app.views.customers.customers_view import CustomersView
             return CustomersView()
-        elif index == 6:
+        elif index == 7:
             from app.views.settings.settings_view import SettingsView
             return SettingsView(status_bar=self._status_bar)
         return self._pages[index]

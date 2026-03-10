@@ -78,6 +78,10 @@ class CustomerFormDialog(QDialog):
         self.cpf_edit.setPlaceholderText("000.000.000-00")
         form.addRow("CPF", self.cpf_edit)
 
+        self.email_edit = QLineEdit()
+        self.email_edit.setPlaceholderText("email@exemplo.com")
+        form.addRow("E-mail", self.email_edit)
+
         self.notes_edit = QTextEdit()
         self.notes_edit.setMaximumHeight(80)
         form.addRow("Observações", self.notes_edit)
@@ -95,6 +99,7 @@ class CustomerFormDialog(QDialog):
         self.name_edit.setText(c.name)
         self.phone_edit.setText(c.phone)
         self.cpf_edit.setText(c.cpf)
+        self.email_edit.setText(getattr(c, "email", "") or "")
         self.notes_edit.setPlainText(c.notes)
 
     def _save(self):
@@ -106,6 +111,7 @@ class CustomerFormDialog(QDialog):
             "name": name,
             "phone": self.phone_edit.text().strip(),
             "cpf": self.cpf_edit.text().strip(),
+            "email": self.email_edit.text().strip(),
             "notes": self.notes_edit.toPlainText().strip(),
         }
         try:
@@ -172,6 +178,12 @@ class CustomersView(QWidget):
             al.setContentsMargins(4, 2, 4, 2)
             al.setSpacing(4)
 
+            hist_btn = QPushButton("Histórico")
+            hist_btn.setObjectName("btn_primary")
+            hist_btn.setFixedHeight(28)
+            hist_btn.clicked.connect(lambda _, cid=c.id: self._history(cid))
+            al.addWidget(hist_btn)
+
             edit_btn = QPushButton("Editar")
             edit_btn.setFixedHeight(28)
             edit_btn.clicked.connect(lambda _, cid=c.id: self._edit(cid))
@@ -185,6 +197,15 @@ class CustomersView(QWidget):
 
             self.table.setCellWidget(row, 4, actions)
             self.table.setRowHeight(row, 38)
+
+    def _history(self, customer_id: int):
+        with get_session() as s:
+            c = s.get(Customer, customer_id)
+        if not c:
+            return
+        from app.views.customers.customer_history_dialog import CustomerHistoryDialog
+        dlg = CustomerHistoryDialog(c, parent=self)
+        dlg.exec()
 
     def _add(self):
         dlg = CustomerFormDialog(parent=self)
