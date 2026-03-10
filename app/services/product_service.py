@@ -1,6 +1,8 @@
 """Product and Category business logic."""
 from __future__ import annotations
 
+from sqlalchemy.orm import joinedload
+
 from app.database import get_session
 from app.models.product import Category, Product
 
@@ -26,7 +28,7 @@ def get_or_create_category(name: str) -> Category:
 
 def list_products(search: str = "", active_only: bool = True) -> list[Product]:
     with get_session() as s:
-        q = s.query(Product)
+        q = s.query(Product).options(joinedload(Product.category))
         if active_only:
             q = q.filter(Product.active == True)  # noqa: E712
         if search:

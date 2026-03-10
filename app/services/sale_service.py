@@ -4,6 +4,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 
+from sqlalchemy.orm import selectinload
+
 from app.database import get_session
 from app.models.product import Product
 from app.models.sale import Sale, SaleItem, StockMovement
@@ -136,7 +138,7 @@ def finalize_sale(
 
 def get_sale_by_id(sale_id: int) -> Sale | None:
     with get_session() as s:
-        return s.get(Sale, sale_id)
+        return s.query(Sale).options(selectinload(Sale.items)).filter(Sale.id == sale_id).first()
 
 
 def list_sales(
@@ -146,7 +148,7 @@ def list_sales(
     customer_id: int | None = None,
 ) -> list[Sale]:
     with get_session() as s:
-        q = s.query(Sale)
+        q = s.query(Sale).options(selectinload(Sale.items))
         if not include_cancelled:
             q = q.filter(Sale.status == "completed")
         if date_from:

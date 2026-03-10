@@ -15,9 +15,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from app.database import get_session
-from app.models.sale import Sale
-from app.services.sale_service import list_sales
+from app.services.sale_service import get_sale_by_id, list_sales
 from app.views.customers.customers_view import list_customers
 
 
@@ -157,8 +155,7 @@ class SalesHistoryView(QWidget):
             return
         sale_id = id_item.data(Qt.ItemDataRole.UserRole)
 
-        with get_session() as s:
-            sale = s.get(Sale, sale_id)
+        sale = get_sale_by_id(sale_id)
         if not sale:
             return
 
